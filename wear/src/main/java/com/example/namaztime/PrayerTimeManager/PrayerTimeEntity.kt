@@ -8,15 +8,29 @@ import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
 import androidx.room.Upsert
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 @Entity(tableName = "prayer_times")
 data class PrayerTimeEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    @ColumnInfo(name = "city_name") val cityName: String,
-    @ColumnInfo(name = "prayer_name") val prayerName: String,
-    @ColumnInfo(name = "prayer_time") val prayerTime: Long,
+    @PrimaryKey(autoGenerate = false) val id: String,
+    @ColumnInfo(name = "prayer_times") val prayerTimesResponse: PrayerTimesResponse,
 )
+
+class PrayerTimesResponseConverter{
+    @TypeConverter
+    fun fromPrayerTimesResponse(prayerTimesResponse: PrayerTimesResponse): String {
+        return Gson().toJson(prayerTimesResponse)
+    }
+    @TypeConverter
+    fun toPrayerTimesResponse(prayerTimesResponse: String): PrayerTimesResponse {
+        val listType = object : TypeToken<PrayerTimesResponse>() {}.type
+        return Gson().fromJson(prayerTimesResponse, listType)
+    }
+}
 
 @Entity(tableName = "cities")
 data class CityEntity(
@@ -26,7 +40,8 @@ data class CityEntity(
     @ColumnInfo(name = "longitude") val longitude: Double,
 )
 
-@Database(entities = [PrayerTimeEntity::class, CityEntity::class], version = 2, exportSchema = false)
+@TypeConverters(PrayerTimesResponseConverter::class)
+@Database(entities = [PrayerTimeEntity::class, CityEntity::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun prayerTimesDao(): PrayerTimesDao
     abstract fun cityDao(): CityDao
@@ -34,20 +49,11 @@ abstract class AppDatabase : RoomDatabase() {
 
 @Dao
 interface PrayerTimesDao {
-    @Query("SELECT * FROM prayer_times")
-    fun getAll(): List<PrayerTimeEntity>
+    @Query("SELECT * FROM prayer_times WHERE id = :cityName LIMIT 1 ")
+    fun get(cityName: String): PrayerTimeEntity?
 
-    @Query("SELECT * FROM prayer_times WHERE city_name = :cityName LIMIT 1 ")
-    fun first(cityName: String): PrayerTimeEntity?
-
-    @Insert
-    fun insert( prayerTimes: PrayerTimeEntity)
-
-    @Query("SELECT * FROM prayer_times WHERE city_name = :cityName and prayer_time >= :currentTime ORDER BY prayer_time ASC LIMIT 1")
-    fun closest(cityName: String, currentTime: Long): PrayerTimeEntity?
-
-    @Query("DELETE FROM prayer_times")
-    fun clear()
+    @Upsert
+    fun insert(prayerTimes: PrayerTimeEntity)
 }
 
 @Dao

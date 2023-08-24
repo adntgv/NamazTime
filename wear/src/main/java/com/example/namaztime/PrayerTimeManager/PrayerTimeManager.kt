@@ -2,6 +2,8 @@ package com.example.namaztime.PrayerTimeManager
 
 import android.content.Context
 import androidx.room.Room
+import java.time.LocalDateTime
+import java.util.Calendar
 import java.util.Date
 
 class PrayerTimeManager (applicationContext: Context) {
@@ -14,12 +16,11 @@ class PrayerTimeManager (applicationContext: Context) {
 
     suspend fun updateCurrentCity(latitude: Double, longitude: Double) : City {
         val city = getCity(latitude, longitude)
-        val prayerTimes = MuftiyatKzApiClient().getPrayerTimes(city)
+        val currentYear = LocalDateTime.now().year
+        val prayerTimes = MuftiyatKzApiClient().getPrayerTimes(city, currentYear)
 
-        db.prayerTimesDao().clear()
-
-        prayerTimes.map {
-            db.prayerTimesDao().insert(it)
+        if (prayerTimes != null) {
+            db.prayerTimesDao().insert(PrayerTimeEntity(id =   city.name,   prayerTimesResponse = prayerTimes))
         }
 
         return city
@@ -49,21 +50,79 @@ class PrayerTimeManager (applicationContext: Context) {
         return city
     }
 
-    private fun getFirstCity(): City? {
-        val cityEntity: CityEntity = db.cityDao().get() ?: return null
+    suspend fun getPrayerTimes(): List<PrayerTime> {
+        var cityEntity = db.cityDao().get()
+        val res = cityEntity?.let { db.prayerTimesDao().get(it.name) }
 
-        return City(
-            name = cityEntity.name,
-            latitude = cityEntity.latitude,
-            longitude = cityEntity.longitude,
-        )
+        val prayerTimes = mutableListOf<PrayerTime>()
+
+        if (res != null) {
+            for (prayerTime in res.prayerTimesResponse.result) {
+                val prayers = listOf(
+                    prayerTime.fajr,
+                    prayerTime.dhuhr,
+                    prayerTime.asr,
+                    prayerTime.maghrib,
+                    prayerTime.isha
+                )
+                for (prayer in prayers) {
+                    val dateTime = Calendar.getInstance()
+                    val date = prayerTime.date.trim().split("-")
+                    dateTime.set(Calendar.YEAR, date[0].trim().toInt())
+                    dateTime.set(Calendar.MONTH, date[1].trim().toInt() - 1)
+                    dateTime.set(Calendar.DAY_OF_MONTH, date[2].trim().toInt())
+                    val pt = prayer.trim().split(":")
+                    dateTime.set(Calendar.HOUR_OF_DAY, pt[0].trim().toInt())
+                    dateTime.set(Calendar.MINUTE, pt[1].trim().toInt())
+                    var name = ""
+                    when (prayer) {
+                        prayerTime.fajr -> name = "Fajr"
+                        prayerTime.dhuhr -> name = "Dhuhr"
+                        prayerTime.asr -> name = "Asr"
+                        prayerTime.maghrib -> name = "Maghrib"
+                        prayerTime.isha -> name = "Isha"
+                    }
+
+                    prayerTimes.add(PrayerTime(name, dateTime))
+                }
+            }
+        }
+
+        // sort by date in ascending order
+        prayerTimes.sortBy { it.dateTime }
+
+        return prayerTimes
     }
 
-    fun getClosestPrayerTime(): PrayerTimeEntity? {
-        val city = getFirstCity()
-            ?: return null
 
-        return db.prayerTimesDao().closest(city.name, Date().time)
+    fun getNextPrayerTime(prayerTimes: List<PrayerTime>, currentTime: Calendar): PrayerTime {
+        // Implement logic to find and return the next prayer time
+        for (prayerTime in prayerTimes) {
+            if (prayerTime.dateTime.after(currentTime)) {
+                return prayerTime
+            }
+        }
+
+        return prayerTimes[0]
+    }
+
+    fun calculateTimeRemaining(currentTime: Calendar, nextPrayerTime: PrayerTime): Long {
+        // remaining time in seconds
+        return (nextPrayerTime.dateTime.timeInMillis - currentTime.timeInMillis) / 1000
+    }
+
+    fun getCurrentPrayerTime(prayerTimes: List<PrayerTime>, currentTime: Calendar): PrayerTime {
+        var checked = prayerTimes.first()
+        for (prayerTime in prayerTimes) {
+            if (prayerTime.dateTime.before(currentTime)) {
+                checked = prayerTime
+            }
+            if (prayerTime.dateTime.after(currentTime)) {
+                break
+            }
+        }
+
+        return checked
     }
 }
 
@@ -72,3 +131,9 @@ data class City (
     val latitude: Double,
     val longitude: Double,
     )
+
+
+data class PrayerTime(
+    val name: String = "",
+    val dateTime: Calendar
+)

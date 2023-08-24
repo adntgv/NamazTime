@@ -120,43 +120,7 @@ class MuftiyatKzApiClient {
         return R * c
     }
 
-    suspend fun getPrayerTimes(city: City): List<PrayerTimeEntity> {
-        val currentYear = LocalDateTime.now().year
-        val prayerTimes =  this.client.getPrayerTimes(currentYear, city.latitude, city.longitude)
-        if (prayerTimes == null) {
-            return listOf()
-        }
-        val prayerTimeEntities = mutableListOf<PrayerTimeEntity>()
-
-        for (prayerTime in prayerTimes.result) {
-            val listOfDayPrayers = mapOf(
-                Pair("Fajr", prayerTime.fajr.trim()),
-                Pair("Dhuhr",  prayerTime.dhuhr.trim()),
-                Pair("Asr", prayerTime.asr.trim()),
-                Pair("Maghrib", prayerTime.maghrib.trim()),
-                Pair("Isha", prayerTime.isha.trim()),
-            )
-
-            for (dayPrayer in listOfDayPrayers) {
-                prayerTimeEntities.add(PrayerTimeEntity(0, city.name,dayPrayer.key, timeToDateToLong(prayerTime.date, dayPrayer.value)))
-            }
-        }
-
-        return prayerTimeEntities
-    }
-
-    private fun timeToDateToLong(date: String, hm: String): Long {
-        val dateTimeString = "$date $hm"
-
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        dateFormat.timeZone = TimeZone.getTimeZone("UTC") // Set the desired time zone
-
-        val dateObject: Date? = dateFormat.parse(dateTimeString)
-
-        if (dateObject != null) {
-            return dateObject.time
-        }
-
-        return 0
+    suspend fun getPrayerTimes(city: City, year: Int): PrayerTimesResponse? {
+        return this.client.getPrayerTimes(year, city.latitude, city.longitude)
     }
 }

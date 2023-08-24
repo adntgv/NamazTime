@@ -1,28 +1,20 @@
 package com.example.namaztime.complication
 
 import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
-import androidx.wear.watchface.complications.data.EmptyComplicationData
 import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
-import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
 import com.example.namaztime.presentation.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.text.DateFormat.getDateTimeInstance
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 
 /**
  * Skeleton for complication data source that returns short text.
@@ -36,58 +28,92 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? {
-        return createComplicationData("20:30", "Monday", type)
+        return ShortTextComplicationData.Builder(
+            text = PlainComplicationText.Builder(text = "6!").build(),
+            contentDescription = PlainComplicationText.Builder(text = "Short Text version of Number.").build()
+        )
+            .setTapAction(null)
+            .build()
     }
+
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
-        val prayerTime =
-            withContext(Dispatchers.IO) {
-                prayerTimeManager.getClosestPrayerTime()
-            }
-
-        if (prayerTime == null) {
-            return createComplicationData("empty", "Prayer", request.complicationType)
-        }
-
-        val time = Date(prayerTime.prayerTime)
-        val formatter = SimpleDateFormat("HH:mm")
-
-        return createComplicationData(formatter.format(time), prayerTime.prayerName, request.complicationType)
-    }
-
-    private fun createComplicationData(text: String, contentDescription: String, type: ComplicationType): ComplicationData {
-
         val complicationPendingIntent = Intent(applicationContext, MainActivity::class.java).let { intent ->
             PendingIntent.getActivity(applicationContext, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         }
 
-        return when (type) {
-            ComplicationType.SHORT_TEXT ->
+        val prayerTimes =
+            withContext(Dispatchers.IO) {
+                prayerTimeManager.getPrayerTimes()
+            }
+        val currentTime = Calendar.getInstance()
+
+        var nextPrayerTime = prayerTimes.last()
+        var currentPrayerTime = prayerTimes.first()
+
+        for (prayerTime in prayerTimes) {
+            if (currentTime.timeInMillis < prayerTime.dateTime.timeInMillis) {
+                nextPrayerTime = prayerTime
+                break
+            }
+            currentPrayerTime = prayerTime
+        }
+
+        val remainingSeconds = prayerTimeManager.calculateTimeRemaining(currentTime, nextPrayerTime)
+        var minutes = remainingSeconds / 60
+        val hours = minutes / 60
+        minutes %= 60
+
+        val hoursString = if (hours < 10) "0$hours" else hours.toString()
+        val minutesString = if (minutes < 10) "0$minutes" else minutes.toString()
+
+        return when (request.complicationType) {
+            ComplicationType.SHORT_TEXT -> {
+                val complicationText = "${nextPrayerTime.name} in $hoursString:$minutesString"
+                // Create complication data.
                 ShortTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(text).build(),
-                    contentDescription = PlainComplicationText.Builder(contentDescription).build()
+                    text = PlainComplicationText.Builder(text = complicationText).build(),
+                    contentDescription = PlainComplicationText.Builder(text = "Short Text version of Number.").build()
                 )
                     .setTapAction(complicationPendingIntent)
-
                     .build()
-           ComplicationType.LONG_TEXT ->
-               LongTextComplicationData.Builder(
-                   text = PlainComplicationText.Builder(text).build(),
-                   contentDescription = PlainComplicationText.Builder(contentDescription).build()
-               )
-                   .setTapAction(complicationPendingIntent)
-                   .build()
-            ComplicationType.RANGED_VALUE ->
+            }
+            ComplicationType.LONG_TEXT -> {
+                val complicationText = "${nextPrayerTime.name} in $hours h and $minutes minutes"
+                // Create complication data.
+                LongTextComplicationData.Builder(
+                    text = PlainComplicationText.Builder(text = complicationText).build(),
+                    contentDescription = PlainComplicationText.Builder(text = "Long Text version of Number.").build()
+                )
+                    .setTapAction(complicationPendingIntent)
+                    .build()
+            }
+            ComplicationType.RANGED_VALUE -> {
+                var complicationText = if (hours > 0) {
+                    "$hours h"
+                } else if (minutes > 0) {
+                    "$minutes m"
+                } else {
+                    "$remainingSeconds s"
+                }
+
+                val max = prayerTimeManager.calculateTimeRemaining(currentPrayerTime.dateTime, nextPrayerTime)
                 RangedValueComplicationData.Builder(
-                    value = 0f,
+                    value = remainingSeconds.toFloat(),
                     min = 0f,
-                    max = 100f,
-                    contentDescription = PlainComplicationText.Builder(contentDescription).build()
+                    max = max.toFloat(),
+                    contentDescription = PlainComplicationText.Builder(text = "Ranged Value version of Number.").build()
                 )
+                    .setText(PlainComplicationText.Builder(text = complicationText).build())
                     .setTapAction(complicationPendingIntent)
                     .build()
-
-            else -> EmptyComplicationData()
+            }
+            else -> {
+                // This will only happen if you have a watch face that contains a complication that
+                // is not supported by this data source. We include it as a precaution, but this
+                // should never be reached.
+                throw IllegalArgumentException("Complication type ${request.complicationType} not supported by this data source")
+            }
         }
     }
 }
