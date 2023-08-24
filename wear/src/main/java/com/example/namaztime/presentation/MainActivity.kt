@@ -39,7 +39,9 @@ import com.example.namaztime.PrayerTimeManager.City
 import com.example.namaztime.R
 import com.example.namaztime.presentation.theme.NamazTimeTheme
 import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity(), LocationListener {
 
@@ -53,7 +55,7 @@ class MainActivity : ComponentActivity(), LocationListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        prayerTimeManager = PrayerTimeManager()
+        prayerTimeManager = PrayerTimeManager(applicationContext)
         getLocation()
 
         setContent {
@@ -82,11 +84,14 @@ class MainActivity : ComponentActivity(), LocationListener {
     }
 
     override fun onLocationChanged(location: Location) {
-        val latitude = location.latitude
-        val longitude = location.longitude
+        latitude = location.latitude
+        longitude = location.longitude
 
         lifecycleScope.launch {
-            city.value = prayerTimeManager.updateCurrentCity(latitude, longitude)
+            city.value =
+                withContext(Dispatchers.IO) {
+                    prayerTimeManager.updateCurrentCity(latitude, longitude)
+                }
         }
     }
 
@@ -127,7 +132,10 @@ class MainActivity : ComponentActivity(), LocationListener {
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 coroutineScope.launch {
-                    city.value = prayerTimeManager.updateCurrentCity(latitude, longitude)
+                    city.value =
+                        withContext(Dispatchers.IO) {
+                            prayerTimeManager.updateCurrentCity(latitude, longitude)
+                        }
                 }
             },
         ) {

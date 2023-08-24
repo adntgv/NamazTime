@@ -6,12 +6,24 @@ import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
+import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.text.DateFormat.getDateTimeInstance
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 
 /**
  * Skeleton for complication data source that returns short text.
  */
 class MainComplicationService : SuspendingComplicationDataSourceService() {
+    private lateinit var prayerTimeManager: PrayerTimeManager
+
+    override fun onCreate() {
+        super.onCreate()
+        prayerTimeManager = PrayerTimeManager(applicationContext)
+    }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? {
         if (type != ComplicationType.SHORT_TEXT) {
@@ -21,16 +33,19 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
-        return when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
-            Calendar.SUNDAY -> createComplicationData("Sun", "Sunday")
-            Calendar.MONDAY -> createComplicationData("Mon", "Monday")
-            Calendar.TUESDAY -> createComplicationData("Tue", "Tuesday")
-            Calendar.WEDNESDAY -> createComplicationData("Wed", "Wednesday")
-            Calendar.THURSDAY -> createComplicationData("Thu", "Thursday")
-            Calendar.FRIDAY -> createComplicationData("Fri!", "Friday!")
-            Calendar.SATURDAY -> createComplicationData("Sat", "Saturday")
-            else -> throw IllegalArgumentException("too many days")
+        val prayerTime =
+            withContext(Dispatchers.IO) {
+                prayerTimeManager.getClosestPrayerTime()
+            }
+
+        if (prayerTime == null) {
+            return createComplicationData("empty", "Prayer")
         }
+
+        val time = Date(prayerTime.prayerTime)
+        val formatter = SimpleDateFormat("HH:mm")
+
+        return createComplicationData(formatter.format(time), prayerTime.prayerName)
     }
 
     private fun createComplicationData(text: String, contentDescription: String) =
