@@ -148,7 +148,7 @@ class MuftiyatKzApiClient {
     private fun timeToDateToLong(date: String, hm: String): Long {
         val dateTimeString = "$date $hm"
 
-        val dateFormat = SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         dateFormat.timeZone = TimeZone.getTimeZone("UTC") // Set the desired time zone
 
         val dateObject: Date? = dateFormat.parse(dateTimeString)

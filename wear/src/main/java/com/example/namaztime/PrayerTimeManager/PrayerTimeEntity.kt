@@ -43,8 +43,11 @@ interface PrayerTimesDao {
     @Insert
     fun insert( prayerTimes: PrayerTimeEntity)
 
-    @Query("SELECT * FROM prayer_times WHERE city_name = :cityName and prayer_time > :currentTime ORDER BY prayer_time ASC LIMIT 1")
+    @Query("SELECT * FROM prayer_times WHERE city_name = :cityName and prayer_time >= :currentTime ORDER BY prayer_time ASC LIMIT 1")
     fun closest(cityName: String, currentTime: Long): PrayerTimeEntity?
+
+    @Query("DELETE FROM prayer_times")
+    fun clear()
 }
 
 @Dao

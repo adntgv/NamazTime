@@ -16,12 +16,10 @@ class PrayerTimeManager (applicationContext: Context) {
         val city = getCity(latitude, longitude)
         val prayerTimes = MuftiyatKzApiClient().getPrayerTimes(city)
 
-        val check = db.prayerTimesDao().first(city.name)
+        db.prayerTimesDao().clear()
 
-        if (check == null) {
-            prayerTimes.map {
-                db.prayerTimesDao().insert(it)
-            }
+        prayerTimes.map {
+            db.prayerTimesDao().insert(it)
         }
 
         return city
