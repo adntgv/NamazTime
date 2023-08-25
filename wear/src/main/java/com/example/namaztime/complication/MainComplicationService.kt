@@ -29,8 +29,8 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
         return ShortTextComplicationData.Builder(
-            text = PlainComplicationText.Builder(text = "Asr after 01:32").build(),
-            contentDescription = PlainComplicationText.Builder(text = "Short Text version of Number.").build()
+            text = PlainComplicationText.Builder(text = "Asr через 01:32").build(),
+            contentDescription = PlainComplicationText.Builder(text = "Время до намаза.").build()
         )
             .setTapAction(null)
             .build()
@@ -69,32 +69,32 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
 
         return when (request.complicationType) {
             ComplicationType.SHORT_TEXT -> {
-                val complicationText = "${nextPrayerTime.name} after $hoursString:$minutesString"
+                val complicationText = "${nextPrayerTime.name} через $hoursString:$minutesString"
                 // Create complication data.
                 ShortTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(text = complicationText).build(),
-                    contentDescription = PlainComplicationText.Builder(text = "Short Text version of Number.").build()
+                    contentDescription = PlainComplicationText.Builder(text = "Время до намаза").build()
                 )
                     .setTapAction(complicationPendingIntent)
                     .build()
             }
             ComplicationType.LONG_TEXT -> {
-                val complicationText = "${nextPrayerTime.name} in $hours h and $minutes minutes"
+                val complicationText = "${nextPrayerTime.name} через $hours ч и $minutes м"
                 // Create complication data.
                 LongTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(text = complicationText).build(),
-                    contentDescription = PlainComplicationText.Builder(text = "Long Text version of Number.").build()
+                    contentDescription = PlainComplicationText.Builder(text = "Время до намаза").build()
                 )
                     .setTapAction(complicationPendingIntent)
                     .build()
             }
             ComplicationType.RANGED_VALUE -> {
                 val complicationText = if (hours > 0) {
-                    "$hours h"
+                    "$hours ч"
                 } else if (minutes > 0) {
-                    "$minutes m"
+                    "$minutes м"
                 } else {
-                    "$remainingSeconds s"
+                    "$remainingSeconds с"
                 }
 
                 val max = prayerTimeManager.calculateTimeRemaining(currentPrayerTime.dateTime, nextPrayerTime)
@@ -102,7 +102,7 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
                     value = remainingSeconds.toFloat(),
                     min = 0f,
                     max = max.toFloat(),
-                    contentDescription = PlainComplicationText.Builder(text = "Ranged Value version of Number.").build()
+                    contentDescription = PlainComplicationText.Builder(text = "Время до намаза").build()
                 )
                     .setText(PlainComplicationText.Builder(text = complicationText).build())
                     .setTapAction(complicationPendingIntent)
