@@ -64,22 +64,27 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
         val hours = minutes / 60
         minutes %= 60
 
-        val hoursString = if (hours < 10) "0$hours" else hours.toString()
-        val minutesString = if (minutes < 10) "0$minutes" else minutes.toString()
+        var complicationText = if (hours > 0) {
+            "$hours ч"
+        } else if (minutes > 0) {
+            "$minutes м"
+        } else {
+            "$remainingSeconds с"
+        }
 
         return when (request.complicationType) {
             ComplicationType.SHORT_TEXT -> {
-                val complicationText = "${nextPrayerTime.name} через $hoursString:$minutesString"
                 // Create complication data.
                 ShortTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(text = complicationText).build(),
-                    contentDescription = PlainComplicationText.Builder(text = "Время до намаза").build()
+                    contentDescription = PlainComplicationText.Builder(text = "Время до намаза").build(),
+
                 )
                     .setTapAction(complicationPendingIntent)
                     .build()
             }
             ComplicationType.LONG_TEXT -> {
-                val complicationText = "${nextPrayerTime.name} через $hours ч и $minutes м"
+                complicationText = "${nextPrayerTime.name} через $hours ч и $minutes м"
                 // Create complication data.
                 LongTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(text = complicationText).build(),
@@ -89,14 +94,6 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
                     .build()
             }
             ComplicationType.RANGED_VALUE -> {
-                val complicationText = if (hours > 0) {
-                    "$hours ч"
-                } else if (minutes > 0) {
-                    "$minutes м"
-                } else {
-                    "$remainingSeconds с"
-                }
-
                 val max = prayerTimeManager.calculateTimeRemaining(currentPrayerTime.dateTime, nextPrayerTime)
                 RangedValueComplicationData.Builder(
                     value = remainingSeconds.toFloat(),
