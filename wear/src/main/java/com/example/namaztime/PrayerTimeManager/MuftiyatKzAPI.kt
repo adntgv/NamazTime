@@ -6,10 +6,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
+import java.util.Calendar
 
 interface MuftiyatKzAPI {
     @GET("prayer-times/{year}/{lat}/{lng}")
@@ -73,8 +70,50 @@ class MuftiyatKzApiClient {
 
     private val client: MuftiyatKzAPI = retrofit.create(MuftiyatKzAPI::class.java)
 
-    suspend fun getPrayerTimes(city: City, year: Int): PrayerTimesResponse? {
-        return this.client.getPrayerTimes(year, city.latitude, city.longitude)
+    suspend fun getPrayerTimes(city: City, year: Int): List<PrayerTime> {
+        val res =  this.client.getPrayerTimes(year, city.latitude, city.longitude)
+
+        val prayerTimes = mutableListOf<PrayerTime>()
+
+        if (res != null) {
+            var id = 0
+            for (prayerTime in res.result) {
+                val prayers = listOf(
+                    prayerTime.fajr,
+                    prayerTime.dhuhr,
+                    prayerTime.asr,
+                    prayerTime.maghrib,
+                    prayerTime.isha
+                )
+
+                for (prayer in prayers) {
+                    val dateTime = Calendar.getInstance()
+                    val date = prayerTime.date.trim().split("-")
+                    dateTime.set(Calendar.YEAR, date[0].trim().toInt())
+                    dateTime.set(Calendar.MONTH, date[1].trim().toInt() - 1)
+                    dateTime.set(Calendar.DAY_OF_MONTH, date[2].trim().toInt())
+                    val pt = prayer.trim().split(":")
+                    dateTime.set(Calendar.HOUR_OF_DAY, pt[0].trim().toInt())
+                    dateTime.set(Calendar.MINUTE, pt[1].trim().toInt())
+                    var name = ""
+                    when (prayer) {
+                        prayerTime.fajr -> name = "Fajr"
+                        prayerTime.dhuhr -> name = "Dhuhr"
+                        prayerTime.asr -> name = "Asr"
+                        prayerTime.maghrib -> name = "Maghrib"
+                        prayerTime.isha -> name = "Isha"
+                    }
+
+                    prayerTimes.add(PrayerTime(id, city.name, name, dateTime))
+                    id++
+                }
+            }
+        }
+
+        // sort by date in ascending order
+        prayerTimes.sortBy { it.dateTime }
+
+        return prayerTimes
     }
 
     suspend fun getAllCities(): List<City> {
@@ -83,10 +122,12 @@ class MuftiyatKzApiClient {
         var res = this.client.getCities(1)
         val citiesCount = res.count
 
+        var id = 0
         for (page in 1 .. citiesCount / 30) {
             res = this.client.getCities(page)
             for (city in res.results) {
-                cities.add(City(city.title, city.lat.toDouble(), city.lng.toDouble()))
+                cities.add(City(id, city.title, city.lat.toDouble(), city.lng.toDouble()))
+                id++
             }
         }
 

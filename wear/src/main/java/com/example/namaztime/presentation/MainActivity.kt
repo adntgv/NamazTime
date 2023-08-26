@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity(), LocationListener {
 
     private lateinit var locationManager: LocationManager
     private val locationPermissionCode = 2
-    private var city = mutableStateOf(City("", 0.0, 0.0))
+    private var city = mutableStateOf(City(0,"", 0.0, 0.0))
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private lateinit var prayerTimeManager: PrayerTimeManager
@@ -73,6 +73,12 @@ class MainActivity : ComponentActivity(), LocationListener {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionCode)
         }
 
+        var provider = getLocationProvider()
+
+        locationManager.requestLocationUpdates(provider, 5000, 5f, this)
+    }
+
+    private fun getLocationProvider(): String {
         val criteria = Criteria()
         criteria.accuracy = Criteria.ACCURACY_COARSE
         var provider = locationManager.getBestProvider(criteria, true)!!
@@ -80,8 +86,7 @@ class MainActivity : ComponentActivity(), LocationListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             provider = LocationManager.FUSED_PROVIDER
         }
-
-        locationManager.requestLocationUpdates(provider, 5000, 5f, this)
+        return provider
     }
 
     @Deprecated("Deprecated")

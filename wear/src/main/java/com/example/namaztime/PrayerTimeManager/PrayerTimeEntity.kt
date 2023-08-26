@@ -12,57 +12,75 @@ import androidx.room.TypeConverters
 import androidx.room.Upsert
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.util.Calendar
 
 @Entity(tableName = "prayer_times")
-data class PrayerTimeEntity(
-    @PrimaryKey(autoGenerate = false) val id: String,
-    @ColumnInfo(name = "prayer_times") val prayerTimesResponse: PrayerTimesResponse,
-)
+data class PrayerTime(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @ColumnInfo(name = "city") val cityName: String,
+    @ColumnInfo(name = "name") val name: String,
+    @ColumnInfo(name = "dateTime") val dateTime: Calendar
+    )
 
-class PrayerTimesResponseConverter{
+class CalendarConverter {
     @TypeConverter
-    fun fromPrayerTimesResponse(prayerTimesResponse: PrayerTimesResponse): String {
-        return Gson().toJson(prayerTimesResponse)
+    fun fromCalendar(dateTime: Calendar): String {
+        return Gson().toJson(dateTime)
     }
+
     @TypeConverter
-    fun toPrayerTimesResponse(prayerTimesResponse: String): PrayerTimesResponse {
-        val listType = object : TypeToken<PrayerTimesResponse>() {}.type
-        return Gson().fromJson(prayerTimesResponse, listType)
+    fun toCalendar(dateTime: String): Calendar {
+        val type = object : TypeToken<Calendar>() {}.type
+        return Gson().fromJson(dateTime, type)
     }
 }
 
+@Dao
+interface PrayerTimesDao {
+    @Query("SELECT * FROM prayer_times WHERE city = :cityName LIMIT 1 ")
+    fun get(cityName: String): List<PrayerTime>
+
+    @Upsert
+    fun insert(prayerTime: PrayerTime)
+}
+
 @Entity(tableName = "cities")
-data class CityEntity(
-    @PrimaryKey(autoGenerate = false) val id: Int = 0,
+data class City(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
     @ColumnInfo(name = "name") val name: String,
     @ColumnInfo(name = "latitude") val latitude: Double,
     @ColumnInfo(name = "longitude") val longitude: Double,
 )
 
-@TypeConverters(PrayerTimesResponseConverter::class)
-@Database(entities = [PrayerTimeEntity::class, CityEntity::class], version = 4, exportSchema = false)
+@Dao
+interface CityDao {
+    @Query("SELECT * FROM cities")
+    fun all(): List<City>
+
+    @Upsert
+    fun set(city: City)
+}
+
+
+@Entity(tableName = "active_city")
+data class ActiveCity(
+    @PrimaryKey(autoGenerate = false) val id: Int = 0,
+    @ColumnInfo(name = "name") val name: String,
+)
+
+@Dao
+interface ActiveCityDao {
+    @Query("SELECT * FROM active_city LIMIT 1")
+    fun get(): ActiveCity?
+
+    @Upsert
+    fun set(activeCity: ActiveCity)
+}
+
+@TypeConverters(CalendarConverter::class)
+@Database(entities = [PrayerTime::class, City::class, ActiveCity::class ], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun prayerTimesDao(): PrayerTimesDao
     abstract fun cityDao(): CityDao
-}
-
-@Dao
-interface PrayerTimesDao {
-    @Query("SELECT * FROM prayer_times WHERE id = :cityName LIMIT 1 ")
-    fun get(cityName: String): PrayerTimeEntity?
-
-    @Upsert
-    fun insert(prayerTimes: PrayerTimeEntity)
-}
-
-@Dao
-interface CityDao {
-    @Query("SELECT * FROM cities Limit 1")
-    fun get(): CityEntity?
-
-    @Query("SELECT * FROM cities")
-    fun all(): List<CityEntity>
-
-    @Upsert
-    fun set(city: CityEntity)
+    abstract fun activeCityDao(): ActiveCityDao
 }
