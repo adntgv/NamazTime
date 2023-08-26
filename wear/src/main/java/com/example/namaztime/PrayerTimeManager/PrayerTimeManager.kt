@@ -4,8 +4,13 @@ import android.content.Context
 import androidx.room.Room
 import java.time.LocalDateTime
 import java.util.Calendar
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 class PrayerTimeManager (applicationContext: Context) {
+    private val client: MuftiyatKzApiClient = MuftiyatKzApiClient()
     private val db = Room.databaseBuilder(
         applicationContext,
         AppDatabase::class.java, "namaztime"
@@ -20,7 +25,7 @@ class PrayerTimeManager (applicationContext: Context) {
         val prayerTimes = MuftiyatKzApiClient().getPrayerTimes(city, currentYear)
 
         if (prayerTimes != null) {
-            db.prayerTimesDao().insert(PrayerTimeEntity(id =   city.name,   prayerTimesResponse = prayerTimes))
+            db.prayerTimesDao().insert(PrayerTimeEntity(id = city.name,   prayerTimesResponse = prayerTimes))
         }
 
         return city
@@ -37,7 +42,7 @@ class PrayerTimeManager (applicationContext: Context) {
                 longitude = cityEntity.longitude,
             )
         } else {
-            city = MuftiyatKzApiClient().getClosestCityTo(latitude, longitude)
+            city = getClosestCityTo(latitude, longitude)
             cityEntity = CityEntity(
                 id = 0,
                 name = city.name,
@@ -48,6 +53,56 @@ class PrayerTimeManager (applicationContext: Context) {
         }
 
         return city
+    }
+
+    private suspend fun getClosestCityTo(targetLatitude: Double, targetLongitude: Double): City {
+        val cities = getAllCities()
+
+        var closestCity = City("unknown", 0.0, 0.0)
+        var closestDistance = Double.MAX_VALUE
+
+        for (city in cities) {
+            val distance = calculateDistance(targetLatitude, targetLongitude, city.latitude, city.longitude)
+
+            if (distance < closestDistance) {
+                closestDistance = distance
+                closestCity = city
+            }
+        }
+
+        return closestCity
+    }
+
+    private suspend fun getAllCities(): List<City> {
+        val cities = db.cityDao().all()
+        if (cities.isEmpty()) {
+            val res = this.client.getAllCities()
+            var id = 1
+            for (city in res) {
+                db.cityDao().set(CityEntity(
+                    id = id,
+                    name = city.name,
+                    latitude = city.latitude,
+                    longitude = city.longitude,
+                ))
+                id++
+            }
+
+            return res
+        }
+
+        return cities.map { City(it.name, it.latitude, it.longitude) }
+    }
+
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371 // Radius of the Earth in kilometers
+        val latDistance = Math.toRadians(lat2 - lat1)
+        val lonDistance = Math.toRadians(lon2 - lon1)
+        val a = sin(latDistance / 2) * sin(latDistance / 2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(lonDistance / 2) * sin(lonDistance / 2)
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return R * c
     }
 
     fun getPrayerTimes(): List<PrayerTime> {

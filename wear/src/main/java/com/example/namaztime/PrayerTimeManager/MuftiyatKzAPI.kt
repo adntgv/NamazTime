@@ -73,49 +73,23 @@ class MuftiyatKzApiClient {
 
     private val client: MuftiyatKzAPI = retrofit.create(MuftiyatKzAPI::class.java)
 
-    suspend fun getClosestCityTo(targetLatitude: Double, targetLongitude: Double): City {
-        val limit = 30
+    suspend fun getPrayerTimes(city: City, year: Int): PrayerTimesResponse? {
+        return this.client.getPrayerTimes(year, city.latitude, city.longitude)
+    }
+
+    suspend fun getAllCities(): List<City> {
+        val cities = mutableListOf<City>()
 
         var res = this.client.getCities(1)
         val citiesCount = res.count
 
-        var closestCity = City("unknown", 0.0, 0.0)
-        var closestDistance = Double.MAX_VALUE
-
-        for (page in 1 .. citiesCount / limit) {
+        for (page in 1 .. citiesCount / 30) {
             res = this.client.getCities(page)
             for (city in res.results) {
-                val cityLatitude = city.lat.toDouble()
-                val cityLongitude = city.lng.toDouble()
-                val distance = calculateDistance(targetLatitude, targetLongitude, cityLatitude, cityLongitude)
-
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestCity = City(city.title, cityLatitude, cityLongitude)
-                }
+                cities.add(City(city.title, city.lat.toDouble(), city.lng.toDouble()))
             }
         }
 
-        return closestCity
-    }
-
-    private fun calculateDistance(
-        lat1: Double,
-        lon1: Double,
-        lat2: Double,
-        lon2: Double
-    ): Double {
-        val R = 6371 // Radius of the Earth in kilometers
-        val latDistance = Math.toRadians(lat2 - lat1)
-        val lonDistance = Math.toRadians(lon2 - lon1)
-        val a = sin(latDistance / 2) * sin(latDistance / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(lonDistance / 2) * sin(lonDistance / 2)
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return R * c
-    }
-
-    suspend fun getPrayerTimes(city: City, year: Int): PrayerTimesResponse? {
-        return this.client.getPrayerTimes(year, city.latitude, city.longitude)
+        return cities
     }
 }
