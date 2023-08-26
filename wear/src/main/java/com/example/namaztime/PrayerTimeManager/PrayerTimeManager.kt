@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import java.time.LocalDateTime
 import java.util.Calendar
-import java.util.Date
 
 class PrayerTimeManager (applicationContext: Context) {
     private val db = Room.databaseBuilder(
@@ -17,6 +16,7 @@ class PrayerTimeManager (applicationContext: Context) {
     suspend fun updateCurrentCity(latitude: Double, longitude: Double) : City {
         val city = getCity(latitude, longitude)
         val currentYear = LocalDateTime.now().year
+
         val prayerTimes = MuftiyatKzApiClient().getPrayerTimes(city, currentYear)
 
         if (prayerTimes != null) {
@@ -50,8 +50,8 @@ class PrayerTimeManager (applicationContext: Context) {
         return city
     }
 
-    suspend fun getPrayerTimes(): List<PrayerTime> {
-        var cityEntity = db.cityDao().get()
+    fun getPrayerTimes(): List<PrayerTime> {
+        val cityEntity = db.cityDao().get()
         val res = cityEntity?.let { db.prayerTimesDao().get(it.name) }
 
         val prayerTimes = mutableListOf<PrayerTime>()
@@ -94,35 +94,9 @@ class PrayerTimeManager (applicationContext: Context) {
         return prayerTimes
     }
 
-
-    fun getNextPrayerTime(prayerTimes: List<PrayerTime>, currentTime: Calendar): PrayerTime {
-        // Implement logic to find and return the next prayer time
-        for (prayerTime in prayerTimes) {
-            if (prayerTime.dateTime.after(currentTime)) {
-                return prayerTime
-            }
-        }
-
-        return prayerTimes[0]
-    }
-
     fun calculateTimeRemaining(currentTime: Calendar, nextPrayerTime: PrayerTime): Long {
         // remaining time in seconds
         return (nextPrayerTime.dateTime.timeInMillis - currentTime.timeInMillis) / 1000
-    }
-
-    fun getCurrentPrayerTime(prayerTimes: List<PrayerTime>, currentTime: Calendar): PrayerTime {
-        var checked = prayerTimes.first()
-        for (prayerTime in prayerTimes) {
-            if (prayerTime.dateTime.before(currentTime)) {
-                checked = prayerTime
-            }
-            if (prayerTime.dateTime.after(currentTime)) {
-                break
-            }
-        }
-
-        return checked
     }
 }
 

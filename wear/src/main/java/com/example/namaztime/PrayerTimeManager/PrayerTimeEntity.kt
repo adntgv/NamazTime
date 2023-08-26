@@ -4,7 +4,6 @@ import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
-import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
@@ -60,6 +59,9 @@ interface PrayerTimesDao {
 interface CityDao {
     @Query("SELECT * FROM cities Limit 1")
     fun get(): CityEntity?
+
+    @Query("SELECT * FROM cities")
+    fun all(): List<CityEntity>
 
     @Upsert
     fun set(city: CityEntity)
