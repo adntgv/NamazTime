@@ -9,11 +9,9 @@ package com.example.namaztime.presentation
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Criteria
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -25,6 +23,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,77 +41,63 @@ import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import com.example.namaztime.PrayerTimeManager.City
+import com.example.namaztime.PrayerTimeManager.PrayerTime
+import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
 import com.example.namaztime.R
 import com.example.namaztime.presentation.theme.NamazTimeTheme
-import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Calendar
 
 class MainActivity : ComponentActivity(), LocationListener {
-
     private lateinit var locationManager: LocationManager
     private val locationPermissionCode = 2
-    private var city = mutableStateOf(City(0,"", 0.0, 0.0))
+    private var city = mutableStateOf(City(0, "", 0.0, 0.0))
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private lateinit var prayerTimeManager: PrayerTimeManager
+    private var nextPrayerTime = mutableStateOf(PrayerTime(0, "", "", Calendar.getInstance()))
+    private var formattedTime = mutableStateOf("")
+    private var cities: List<City> = listOf(
+        City(0, "", 0.0, 0.0)
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         prayerTimeManager = PrayerTimeManager(applicationContext)
-        getLocation()
 
+        lifecycleScope.launch {
+            cities = withContext(Dispatchers.IO) {
+                prayerTimeManager.getAllCities()
+            }
+
+            city.value = withContext(Dispatchers.IO) {
+                prayerTimeManager.getCurrentCity()
+            }
+
+            nextPrayerTime.value = withContext(Dispatchers.IO) {
+                prayerTimeManager.getNextPrayerTime(city.value.name).first
+            }
+
+            formattedTime.value = withContext(Dispatchers.IO) {
+                val formatter = SimpleDateFormat("HH:mm")
+                formatter.format(nextPrayerTime.value.dateTime.time)
+            }
+        }
+
+        getLocation()
         setContent {
             WearApp(this.city.value.name)
         }
     }
 
-    private fun getLocation() {
-        if ((ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), locationPermissionCode)
-        }
-
-        var provider = getLocationProvider()
-
-        locationManager.requestLocationUpdates(provider, 5000, 5f, this)
-    }
-
-    private fun getLocationProvider(): String {
-        val criteria = Criteria()
-        criteria.accuracy = Criteria.ACCURACY_COARSE
-        var provider = locationManager.getBestProvider(criteria, true)!!
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            provider = LocationManager.FUSED_PROVIDER
-        }
-        return provider
-    }
-
-    @Deprecated("Deprecated")
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == locationPermissionCode) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Получены данные о геолокации", Toast.LENGTH_SHORT).show()
-            }
-            else {
-                Toast.makeText(this, "Доступ к геолокации запрещен", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    override fun onLocationChanged(location: Location) {
-        latitude = location.latitude
-        longitude = location.longitude
-
-        lifecycleScope.launch {
-            city.value =
-                withContext(Dispatchers.IO) {
-                    prayerTimeManager.updateCurrentCity(latitude, longitude)
-                }
-        }
+    @Preview(device = Devices.WEAR_OS_SMALL_ROUND, showSystemUi = true)
+    @Composable
+    fun DefaultPreview() {
+        WearApp("Астана")
     }
 
     @Composable
@@ -124,13 +110,67 @@ class MainActivity : ComponentActivity(), LocationListener {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colors.background),
-                verticalArrangement = Arrangement.Center
+                    .background(MaterialTheme.colors.background)
+                    .verticalScroll(rememberScrollState())
+                ,
+                verticalArrangement = Arrangement.Center,
+
             ) {
+                Spacer(modifier = Modifier.height(16.dp))
                 ShowCityName(cityName = cityName)
                 Spacer(modifier = Modifier.height(16.dp))
+                PrayerTimeView()
+                Spacer(modifier = Modifier.height(16.dp))
                 Update()
+                Spacer(modifier = Modifier.height(16.dp))
+                CitySelector(cities)
             }
+        }
+    }
+
+    private @Composable
+    fun CitySelector(cities: List<City>) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+            // scrollable
+
+        ) {
+            for (c in cities) {
+                if (c.name == "" || c.name == city.value.name) {
+                    continue
+                }
+                CitySelectorButton(c.name)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+
+
+    private @Composable
+    fun CitySelectorButton(cityName: String) {
+        val coroutineScope = rememberCoroutineScope()
+
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                coroutineScope.launch {
+                    city.value =
+                        withContext(Dispatchers.IO) {
+                            prayerTimeManager.selectCity(cityName)
+                        }
+
+                    nextPrayerTime.value = withContext(Dispatchers.IO) {
+                        prayerTimeManager.getNextPrayerTime(cityName).first
+                    }
+
+                    formattedTime.value = withContext(Dispatchers.IO) {
+                        val formatter = SimpleDateFormat("HH:mm")
+                        formatter.format(nextPrayerTime.value.dateTime.time)
+                    }
+                }
+            },
+        ) {
+            Text(text = cityName)
         }
     }
 
@@ -156,15 +196,78 @@ class MainActivity : ComponentActivity(), LocationListener {
                         withContext(Dispatchers.IO) {
                             prayerTimeManager.updateCurrentCity(latitude, longitude)
                         }
+
+                    nextPrayerTime.value = withContext(Dispatchers.IO) {
+                        prayerTimeManager.getNextPrayerTime(city.value.name).first
+                    }
+
+                    formattedTime.value = withContext(Dispatchers.IO) {
+                        val formatter = SimpleDateFormat("HH:mm")
+                        formatter.format(nextPrayerTime.value.dateTime.time)
+                    }
                 }
             },
         ) {
             Text(text = stringResource(R.string.update))
         }
     }
-    @Preview(device = Devices.WEAR_OS_SMALL_ROUND, showSystemUi = true)
+
     @Composable
-    fun DefaultPreview() {
-        WearApp("Астана")
+    private fun PrayerTimeView() {
+        rememberCoroutineScope()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colors.background),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        ) {
+            Text(text = nextPrayerTime.value.name, textAlign = TextAlign.Center)
+            Text(text = formattedTime.value, textAlign = TextAlign.Center)
+        }
+    }
+
+    private fun getLocation() {
+        if ((ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED)
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                locationPermissionCode
+            )
+        }
+
+        val provider = getLocationProvider()
+
+        locationManager.requestLocationUpdates(provider, 5000, 5f, this)
+    }
+
+    private fun getLocationProvider(): String {
+     return LocationManager.FUSED_PROVIDER
+    }
+
+    @Deprecated("Deprecated")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == locationPermissionCode) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Получены данные о геолокации", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Доступ к геолокации запрещен", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onLocationChanged(location: Location) {
+        latitude = location.latitude
+        longitude = location.longitude
     }
 }

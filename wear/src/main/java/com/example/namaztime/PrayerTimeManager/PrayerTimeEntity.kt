@@ -37,7 +37,7 @@ class CalendarConverter {
 
 @Dao
 interface PrayerTimesDao {
-    @Query("SELECT * FROM prayer_times WHERE city = :cityName LIMIT 1 ")
+    @Query("SELECT * FROM prayer_times WHERE city = :cityName")
     fun get(cityName: String): List<PrayerTime>
 
     @Upsert
@@ -54,11 +54,14 @@ data class City(
 
 @Dao
 interface CityDao {
-    @Query("SELECT * FROM cities")
+    @Query("SELECT * FROM cities ORDER BY name ASC")
     fun all(): List<City>
 
     @Upsert
     fun set(city: City)
+
+    @Query("SELECT * FROM cities WHERE name = :name LIMIT 1")
+    fun get(name: String): City?
 }
 
 

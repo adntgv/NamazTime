@@ -67,7 +67,7 @@ class PrayerTimeManager (applicationContext: Context) {
         return closestCity
     }
 
-    private suspend fun getAllCities(): List<City> {
+    suspend fun getAllCities(): List<City> {
         val cities = db.cityDao().all()
         if (cities.isEmpty() || cities.size == 1) {
             val res = this.client.getAllCities()
@@ -92,20 +92,47 @@ class PrayerTimeManager (applicationContext: Context) {
         return R * c
     }
 
-    fun getPrayerTimes(): List<PrayerTime> {
-        val activeCity = db.activeCityDao().get() ?: return listOf()
-
-        val prayerTimes = db.prayerTimesDao().get(activeCity.name)
-        if (prayerTimes.isEmpty()) {
-            return listOf()
-        }
-
-        return prayerTimes
+    private suspend fun getPrayerTimes(cityName: String): List<PrayerTime> {
+        return updatePrayerTimesForCity(db.cityDao().get(cityName)!!, LocalDateTime.now().year)
     }
 
-    fun calculateTimeRemaining(currentTime: Calendar, nextPrayerTime: PrayerTime): Long {
+    private fun calculateTimeRemaining(currentTime: Calendar, nextPrayerTime: PrayerTime): Long {
         // remaining time in seconds
         return (nextPrayerTime.dateTime.timeInMillis - currentTime.timeInMillis) / 1000
+    }
+
+    suspend fun getNextPrayerTime(cityName: String): Triple<PrayerTime, Long, Long> {
+        val prayerTimes = getPrayerTimes(cityName = cityName)
+        val currentTime = Calendar.getInstance()
+
+        var nextPrayerTime = prayerTimes.last()
+        var currentPrayerTime = prayerTimes.first()
+
+        for (prayerTime in prayerTimes) {
+            if (currentTime.timeInMillis < prayerTime.dateTime.timeInMillis) {
+                nextPrayerTime = prayerTime
+                break
+            }
+            currentPrayerTime = prayerTime
+        }
+
+        val max = calculateTimeRemaining(currentPrayerTime.dateTime, nextPrayerTime)
+        val remainingSeconds = calculateTimeRemaining(currentTime, nextPrayerTime)
+        return Triple(nextPrayerTime, max, remainingSeconds)
+    }
+
+    fun selectCity(name: String): City {
+        val city = db.cityDao().get(name) ?: throw Exception("City not found")
+
+        db.activeCityDao().set(ActiveCity(0, city.name))
+
+        return city
+    }
+
+    fun getCurrentCity(): City {
+        val activeCity = db.activeCityDao().get() ?: throw Exception("Active city not found")
+
+        return db.cityDao().get(activeCity.name) ?: throw Exception("City not found")
     }
 }
 

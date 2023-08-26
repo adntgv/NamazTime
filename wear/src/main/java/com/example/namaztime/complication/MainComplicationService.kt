@@ -14,7 +14,6 @@ import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
 import com.example.namaztime.presentation.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 
 /**
  * Skeleton for complication data source that returns short text.
@@ -42,24 +41,13 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
             PendingIntent.getActivity(applicationContext, 0, intent, PendingIntent.FLAG_IMMUTABLE)
         }
 
-        val prayerTimes =
-            withContext(Dispatchers.IO) {
-                prayerTimeManager.getPrayerTimes()
-            }
-        val currentTime = Calendar.getInstance()
+        val cityName = withContext(Dispatchers.IO) { prayerTimeManager.getCurrentCity().name}
+        val triple = withContext(Dispatchers.IO) { prayerTimeManager.getNextPrayerTime(cityName) }
 
-        var nextPrayerTime = prayerTimes.last()
-        var currentPrayerTime = prayerTimes.first()
+        val nextPrayerTime = triple.first
+        val max = triple.second
+        val remainingSeconds = triple.third
 
-        for (prayerTime in prayerTimes) {
-            if (currentTime.timeInMillis < prayerTime.dateTime.timeInMillis) {
-                nextPrayerTime = prayerTime
-                break
-            }
-            currentPrayerTime = prayerTime
-        }
-
-        val remainingSeconds = prayerTimeManager.calculateTimeRemaining(currentTime, nextPrayerTime)
         var minutes = remainingSeconds / 60
         val hours = minutes / 60
         minutes %= 60
@@ -94,7 +82,6 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
                     .build()
             }
             ComplicationType.RANGED_VALUE -> {
-                val max = prayerTimeManager.calculateTimeRemaining(currentPrayerTime.dateTime, nextPrayerTime)
                 RangedValueComplicationData.Builder(
                     value = remainingSeconds.toFloat(),
                     min = 0f,
@@ -113,4 +100,5 @@ class MainComplicationService : SuspendingComplicationDataSourceService() {
             }
         }
     }
+
 }
