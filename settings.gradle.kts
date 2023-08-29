@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "NamazTime"
 include(":mobile")
 include(":wear")
+include(":prayertimemanager")

@@ -10,8 +10,8 @@ import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
-import com.example.namaztime.PrayerTimeManager.PrayerTimeManager
 import com.example.namaztime.presentation.MainActivity
+import com.example.prayertimemanager.PrayerTimeManager.PrayerTimeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

@@ -1,4 +1,4 @@
-package com.example.namaztime.PrayerTimeManager
+package com.example.prayertimemanager.PrayerTimeManager
 
 import androidx.room.ColumnInfo
 import androidx.room.Dao

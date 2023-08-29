@@ -1,4 +1,4 @@
-package com.example.namaztime.PrayerTimeManager
+package com.example.prayertimemanager.PrayerTimeManager
 
 import android.content.Context
 import androidx.room.Room
@@ -93,7 +93,8 @@ class PrayerTimeManager (applicationContext: Context) {
     }
 
     private suspend fun getPrayerTimes(cityName: String): List<PrayerTime> {
-        return updatePrayerTimesForCity(db.cityDao().get(cityName)!!, LocalDateTime.now().year)
+        val city = db.cityDao().get(cityName) ?: throw Exception("City not found")
+        return updatePrayerTimesForCity(city, LocalDateTime.now().year)
     }
 
     private fun calculateTimeRemaining(currentTime: Calendar, nextPrayerTime: PrayerTime): Long {

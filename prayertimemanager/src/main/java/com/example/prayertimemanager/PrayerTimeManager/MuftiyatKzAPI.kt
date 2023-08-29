@@ -1,4 +1,4 @@
-package com.example.namaztime.PrayerTimeManager
+package com.example.prayertimemanager.PrayerTimeManager
 
 import com.google.gson.annotations.SerializedName
 import retrofit2.Retrofit

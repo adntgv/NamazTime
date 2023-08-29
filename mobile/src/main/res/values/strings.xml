@@ -2,4 +2,5 @@
     <string name="app_name">NamazTime</string>
     <string name="current_city">Astana</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="cityName">"город "</string>
 </resources>
