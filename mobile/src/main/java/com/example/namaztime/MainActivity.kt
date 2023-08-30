@@ -29,7 +29,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -54,7 +56,7 @@ class MainActivity : ComponentActivity(), LocationListener {
     private var city = mutableStateOf(
         City(
             0,
-            "",
+            "Hi",
             0.0,
             0.0
         )
@@ -70,7 +72,6 @@ class MainActivity : ComponentActivity(), LocationListener {
             Calendar.getInstance()
         )
     )
-    private var formattedTime = mutableStateOf("")
     private var cities: List<City> = listOf(
         City(0, "", 0.0, 0.0)
     )
@@ -88,8 +89,13 @@ class MainActivity : ComponentActivity(), LocationListener {
         }
 
         getLocation()
+
         setContent {
-            WearApp(this.city.value.name)
+            val cityName = rememberSaveable(city.value.name) {
+                city.value.name
+            }
+
+            WearApp(cityName)
         }
     }
 
@@ -101,6 +107,18 @@ class MainActivity : ComponentActivity(), LocationListener {
 
     @Composable
     fun WearApp(cityName: String) {
+        val name = remember {
+            nextPrayerTime.value.name
+        }
+
+        val formatter = SimpleDateFormat("HH:mm")
+        val formattedTime = remember {
+            mutableStateOf(formatter.format(nextPrayerTime.value.dateTime.time))
+        }
+        val time = rememberSaveable{
+            formattedTime.value
+        }
+
         NamazTimeTheme {
             /* If you have enough items in your list, use [ScalingLazyColumn] which is an optimized
              * version of LazyColumn for wear devices with some added features. For more information,
@@ -116,9 +134,9 @@ class MainActivity : ComponentActivity(), LocationListener {
 
                 ) {
                 Spacer(modifier = Modifier.height(16.dp))
-                ShowCityName(cityName = cityName)
+                ShowCityName(city.value.name)
                 Spacer(modifier = Modifier.height(16.dp))
-                PrayerTimeView()
+                PrayerTimeView(name, time)
                 Spacer(modifier = Modifier.height(16.dp))
                 Update()
                 Spacer(modifier = Modifier.height(16.dp))
@@ -127,8 +145,8 @@ class MainActivity : ComponentActivity(), LocationListener {
         }
     }
 
-    private @Composable
-    fun CitySelector(cities: List<City>) {
+    @Composable
+    private fun CitySelector(cities: List<City>) {
         Column(
             modifier = Modifier.fillMaxWidth()
             // scrollable
@@ -172,10 +190,6 @@ class MainActivity : ComponentActivity(), LocationListener {
     private suspend fun updatePrayerTimesForCity(cityName: String) {
         nextPrayerTime.value =
             prayerTimeManager.getNextPrayerTime(cityName).first
-
-        val formatter = SimpleDateFormat("HH:mm")
-        formattedTime.value =
-            formatter.format(nextPrayerTime.value.dateTime.time)
     }
 
     @Composable
@@ -184,7 +198,7 @@ class MainActivity : ComponentActivity(), LocationListener {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             color = Color.White,
-            text = stringResource(R.string.cityName, cityName)
+            text =  cityName
         )
     }
 
@@ -216,9 +230,7 @@ class MainActivity : ComponentActivity(), LocationListener {
     }
 
     @Composable
-    private fun PrayerTimeView() {
-        rememberCoroutineScope()
-
+    private fun PrayerTimeView(name: String, time: String) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -226,8 +238,8 @@ class MainActivity : ComponentActivity(), LocationListener {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
         ) {
-            Text(text = nextPrayerTime.value.name, textAlign = TextAlign.Center)
-            Text(text = formattedTime.value, textAlign = TextAlign.Center)
+            Text(text = name, textAlign = TextAlign.Center , color = Color.White)
+            Text(text = time, textAlign = TextAlign.Center,  color = Color.White)
         }
     }
 

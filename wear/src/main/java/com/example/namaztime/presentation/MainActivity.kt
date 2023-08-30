@@ -70,21 +70,8 @@ class MainActivity : ComponentActivity(), LocationListener {
         prayerTimeManager = PrayerTimeManager(applicationContext)
 
         lifecycleScope.launch {
-            cities = withContext(Dispatchers.IO) {
-                prayerTimeManager.getAllCities()
-            }
-
-            city.value = withContext(Dispatchers.IO) {
-                prayerTimeManager.getCurrentCity()
-            }
-
-            nextPrayerTime.value = withContext(Dispatchers.IO) {
-                prayerTimeManager.getNextPrayerTime(city.value.name).first
-            }
-
-            formattedTime.value = withContext(Dispatchers.IO) {
-                val formatter = SimpleDateFormat("HH:mm")
-                formatter.format(nextPrayerTime.value.dateTime.time)
+            withContext(Dispatchers.IO) {
+                update()
             }
         }
 
@@ -154,18 +141,9 @@ class MainActivity : ComponentActivity(), LocationListener {
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 coroutineScope.launch {
-                    city.value =
-                        withContext(Dispatchers.IO) {
-                            prayerTimeManager.selectCity(cityName)
-                        }
-
-                    nextPrayerTime.value = withContext(Dispatchers.IO) {
-                        prayerTimeManager.getNextPrayerTime(cityName).first
-                    }
-
-                    formattedTime.value = withContext(Dispatchers.IO) {
-                        val formatter = SimpleDateFormat("HH:mm")
-                        formatter.format(nextPrayerTime.value.dateTime.time)
+                    withContext(Dispatchers.IO) {
+                        city.value = prayerTimeManager.selectCity(cityName)
+                        updatePrayerTime(cityName = cityName)
                     }
                 }
             },
@@ -192,24 +170,29 @@ class MainActivity : ComponentActivity(), LocationListener {
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 coroutineScope.launch {
-                    city.value =
-                        withContext(Dispatchers.IO) {
-                            prayerTimeManager.updateCurrentCity(latitude, longitude)
-                        }
-
-                    nextPrayerTime.value = withContext(Dispatchers.IO) {
-                        prayerTimeManager.getNextPrayerTime(city.value.name).first
-                    }
-
-                    formattedTime.value = withContext(Dispatchers.IO) {
-                        val formatter = SimpleDateFormat("HH:mm")
-                        formatter.format(nextPrayerTime.value.dateTime.time)
+                    withContext(Dispatchers.IO) {
+                        update()
                     }
                 }
             },
         ) {
             Text(text = stringResource(R.string.update))
         }
+    }
+
+    private suspend fun update() {
+        cities = prayerTimeManager.getAllCities()
+
+        city.value = prayerTimeManager.updateCurrentCity(latitude, longitude)
+
+        updatePrayerTime(cityName = city.value.name)
+    }
+
+    private suspend fun updatePrayerTime(cityName: String = city.value.name) {
+        nextPrayerTime.value = prayerTimeManager.getNextPrayerTime(cityName).first
+
+        val formatter = SimpleDateFormat("HH:mm")
+        formattedTime.value = formatter.format(nextPrayerTime.value.dateTime.time)
     }
 
     @Composable
