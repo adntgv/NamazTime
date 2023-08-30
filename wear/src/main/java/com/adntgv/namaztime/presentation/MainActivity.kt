@@ -40,11 +40,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
-import com.example.namaztime.R
 import com.adntgv.namaztime.presentation.theme.NamazTimeTheme
 import com.adntgv.prayertimemanager.PrayerTimeManager.City
 import com.adntgv.prayertimemanager.PrayerTimeManager.PrayerTime
 import com.adntgv.prayertimemanager.PrayerTimeManager.PrayerTimeManager
+import com.adntgv.namaztime.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.namaztime"
+    namespace = "com.adntgv.namaztime"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.namaztime"
+        applicationId = "com.adntgv.namaztime"
         minSdk = 30
         targetSdk = 33
         versionCode = 1

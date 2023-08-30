@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.prayertimemanager"
+    namespace = "com.adntgv.prayertimemanager"
     compileSdk = 34
 
     defaultConfig {
