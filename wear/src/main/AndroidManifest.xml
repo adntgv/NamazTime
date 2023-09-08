@@ -47,7 +47,7 @@
         <activity
             android:name="com.adntgv.namaztime.presentation.MainActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.DeviceDefault">
+            android:theme="@style/Theme.App.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
