@@ -11,6 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.adntgv.namaztime"
         minSdk = 30
+        //noinspection OldTargetApi - 34 is not ready yet
         targetSdk = 33
         versionCode = 2
         versionName = "1.0"
@@ -52,7 +53,7 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.10.1")
-    implementation("com.google.android.gms:play-services-wearable:18.0.0")
+    implementation("com.google.android.gms:play-services-wearable:18.1.0")
     implementation("androidx.percentlayout:percentlayout:1.0.0")
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.3.1")
