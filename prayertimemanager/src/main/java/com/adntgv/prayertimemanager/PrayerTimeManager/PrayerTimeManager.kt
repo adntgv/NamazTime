@@ -135,5 +135,13 @@ class PrayerTimeManager (applicationContext: Context) {
 
         return db.cityDao().get(activeCity.name) ?: throw Exception("City not found")
     }
+
+    fun resetSettings() {
+        db.activeCityDao().set(ActiveCity(0, "unknown"))
+
+        db.prayerTimesDao().deleteAll()
+
+        db.cityDao().deleteAll()
+    }
 }
 

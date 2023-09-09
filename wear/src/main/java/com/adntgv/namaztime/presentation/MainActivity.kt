@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -38,6 +39,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.wear.compose.material.Button
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
@@ -47,6 +52,7 @@ import com.adntgv.prayertimemanager.PrayerTimeManager.PrayerTime
 import com.adntgv.prayertimemanager.PrayerTimeManager.PrayerTimeManager
 import com.adntgv.namaztime.R
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -56,15 +62,15 @@ class MainActivity : ComponentActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private val locationPermissionCode = 2
     private var city = mutableStateOf(City(0, "", 0.0, 0.0))
-    private var latitude: Double = 0.0
-    private var longitude: Double = 0.0
+    private var latitude = mutableDoubleStateOf(51.169392)
+    private var longitude = mutableDoubleStateOf(71.449074)
     private lateinit var prayerTimeManager: PrayerTimeManager
     private var nextPrayerTime = mutableStateOf(PrayerTime(0, "", "", Calendar.getInstance()))
     private var formattedTime = mutableStateOf("")
     private var cities: List<City> = listOf(
         City(0, "", 0.0, 0.0)
     )
-
+    private var updating = mutableStateOf(false)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -79,7 +85,57 @@ class MainActivity : ComponentActivity(), LocationListener {
 
         getLocation()
         setContent {
-            WearApp(this.city.value.name)
+            MyAppNavHost()
+        }
+    }
+
+    @Composable
+    fun MyAppNavHost(
+        modifier: Modifier = Modifier,
+        navController: NavHostController = rememberNavController(),
+        startDestination: String = "main"
+    ) {
+        NavHost(
+            modifier = modifier,
+            navController = navController,
+            startDestination = startDestination
+        ) {
+            composable("main") {
+                WearApp(city.value.name, navController)
+            }
+            composable("citiesList") { CitiesList(navController)}
+            composable("settings") { Settings(navController) }
+        }
+    }
+
+    @Composable
+    fun Settings(navController: NavHostController) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colors.background)
+                .verticalScroll(rememberScrollState())
+            ,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            NavButton(text = "Назад", location = "main", navController)
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        prayerTimeManager.resetSettings()
+                        update()
+                        runOnUiThread {
+                            Toast.makeText(this@MainActivity, "Настройки сброшены", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                }) {
+                Text(text = "Сбросить настройки")
+            }
         }
     }
 
@@ -90,7 +146,7 @@ class MainActivity : ComponentActivity(), LocationListener {
     }
 
     @Composable
-    fun WearApp(cityName: String) {
+    fun WearApp(cityName: String, navController: NavHostController = rememberNavController()) {
         NamazTimeTheme {
             /* If you have enough items in your list, use [ScalingLazyColumn] which is an optimized
              * version of LazyColumn for wear devices with some added features. For more information,
@@ -108,12 +164,46 @@ class MainActivity : ComponentActivity(), LocationListener {
                 Spacer(modifier = Modifier.height(16.dp))
                 ShowCityName(cityName = cityName)
                 Spacer(modifier = Modifier.height(16.dp))
-                PrayerTimeView()
+                if (updating.value) {
+                    Text(text = "Обновление...")
+                } else {
+                    PrayerTimeView()
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Update()
                 Spacer(modifier = Modifier.height(16.dp))
-                CitySelector(cities)
+                NavButton(text = "Выбрать город", location = "citiesList", navController)
+                Spacer(modifier = Modifier.height(16.dp))
+                NavButton(text = "Настройки", location = "settings", navController)
             }
+        }
+    }
+
+    @Composable
+    fun NavButton(text: String, location: String, navController: NavHostController) {
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+            navController.navigate(location)
+        }) {
+            Text(text = text)
+        }
+    }
+
+    @Composable
+    fun CitiesList(navController: NavHostController) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colors.background)
+                .verticalScroll(rememberScrollState())
+            ,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            NavButton(text = "Назад", location = "main", navController)
+            Spacer(modifier = Modifier.height(16.dp))
+            CitySelector(cities)
         }
     }
 
@@ -183,11 +273,15 @@ class MainActivity : ComponentActivity(), LocationListener {
     }
 
     private suspend fun update() {
+        updating.value = true
+
         cities = prayerTimeManager.getAllCities()
 
-        city.value = prayerTimeManager.updateCurrentCity(latitude, longitude)
+        city.value = prayerTimeManager.updateCurrentCity(latitude.doubleValue, longitude.doubleValue)
 
         updatePrayerTime(cityName = city.value.name)
+
+        updating.value = false
     }
 
     private suspend fun updatePrayerTime(cityName: String = city.value.name) {
@@ -199,8 +293,6 @@ class MainActivity : ComponentActivity(), LocationListener {
 
     @Composable
     private fun PrayerTimeView() {
-        rememberCoroutineScope()
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -252,7 +344,9 @@ class MainActivity : ComponentActivity(), LocationListener {
     }
 
     override fun onLocationChanged(location: Location) {
-        latitude = location.latitude
-        longitude = location.longitude
+        latitude.doubleValue = location.latitude
+        longitude.doubleValue = location.longitude
+
+        Toast.makeText(this, "Получены данные о геолокации", Toast.LENGTH_SHORT).show()
     }
 }

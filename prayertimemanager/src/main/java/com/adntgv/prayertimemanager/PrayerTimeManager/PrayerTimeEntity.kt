@@ -42,6 +42,9 @@ interface PrayerTimesDao {
 
     @Upsert
     fun insert(prayerTime: PrayerTime)
+
+    @Query("DELETE FROM prayer_times")
+    fun deleteAll()
 }
 
 @Entity(tableName = "cities")
@@ -62,6 +65,9 @@ interface CityDao {
 
     @Query("SELECT * FROM cities WHERE name = :name LIMIT 1")
     fun get(name: String): City?
+
+    @Query("DELETE FROM cities")
+    fun deleteAll()
 }
 
 

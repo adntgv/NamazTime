@@ -42,7 +42,8 @@ data class PrayerTimesResponseResultItem(
     val maghrib: String,
     @SerializedName("Date") val date: String,
     val dhuhr: String,
-    val fajr: String
+    val fajr: String,
+    val sunrise: String
 )
 
 data class CitiesResponse(
@@ -80,6 +81,7 @@ class MuftiyatKzApiClient {
             for (prayerTime in res.result) {
                 val prayers = listOf(
                     prayerTime.fajr,
+                    prayerTime.sunrise,
                     prayerTime.dhuhr,
                     prayerTime.asr,
                     prayerTime.maghrib,
@@ -98,6 +100,7 @@ class MuftiyatKzApiClient {
                     var name = ""
                     when (prayer) {
                         prayerTime.fajr -> name = "Fajr"
+                        prayerTime.sunrise -> name = "Sunrise"
                         prayerTime.dhuhr -> name = "Dhuhr"
                         prayerTime.asr -> name = "Asr"
                         prayerTime.maghrib -> name = "Maghrib"
